@@ -1,6 +1,10 @@
 #include "server.h"
 
 int main(int argc, char *argv[]) {
+    // Suppress unused parameter warning
+    (void)argc;
+    (void)argv;
+
     // Start the server
     int server_fd = start_server();
     if (server_fd < 0) {
