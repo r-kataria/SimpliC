@@ -1,5 +1,78 @@
 #include "server.h"
 
+// Define the global request queue
+RequestQueue request_queue;
+
+// Initialize the request queue
+void init_queue(RequestQueue *queue) {
+    queue->front = queue->rear = NULL;
+    pthread_mutex_init(&queue->mutex, NULL);
+    pthread_cond_init(&queue->cond, NULL);
+}
+
+// Enqueue a new client_fd into the request queue
+void enqueue(RequestQueue *queue, int client_fd) {
+    RequestNode *new_node = (RequestNode *)malloc(sizeof(RequestNode));
+    if (!new_node) {
+        perror("Failed to allocate memory for new request");
+        return;
+    }
+    new_node->client_fd = client_fd;
+    new_node->next = NULL;
+
+    pthread_mutex_lock(&queue->mutex);
+
+    if (queue->rear == NULL) {
+        // Queue is empty
+        queue->front = queue->rear = new_node;
+    } else {
+        // Add to the end of the queue
+        queue->rear->next = new_node;
+        queue->rear = new_node;
+    }
+
+    // Signal one waiting thread that a new request is available
+    pthread_cond_signal(&queue->cond);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+// Dequeue a client_fd from the request queue
+int dequeue(RequestQueue *queue) {
+    pthread_mutex_lock(&queue->mutex);
+
+    // Wait until the queue is not empty
+    while (queue->front == NULL) {
+        pthread_cond_wait(&queue->cond, &queue->mutex);
+    }
+
+    // Retrieve the front node
+    RequestNode *temp = queue->front;
+    int client_fd = temp->client_fd;
+    queue->front = queue->front->next;
+
+    // If the queue becomes empty, update the rear pointer
+    if (queue->front == NULL) {
+        queue->rear = NULL;
+    }
+
+    free(temp);
+    pthread_mutex_unlock(&queue->mutex);
+
+    return client_fd;
+}
+
+// Worker thread function
+void* worker_thread(void *arg) {
+    // Each thread will continuously process client requests
+    while (1) {
+        int client_fd = dequeue(&request_queue);
+        handle_client(client_fd);
+        close(client_fd);
+        printf("Handled client_fd: %d\n", client_fd);
+    }
+    return NULL;
+}
+
 // Function to determine MIME type based on file extension
 const char* get_mime_type(const char *path) {
     const char *ext = strrchr(path, '.');
@@ -31,7 +104,7 @@ int start_server() {
     }
 
     // Forcefully attaching socket to the PORT
-    // Modify this part to set SO_REUSEADDR only
+    // Only set SO_REUSEADDR to avoid "Protocol not available" error
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
         perror("setsockopt failed");
         close(server_fd);
@@ -95,6 +168,18 @@ void handle_client(int client_fd) {
         strcpy(path, "/index.html");
     }
 
+    // Prevent directory traversal attacks
+    if (strstr(path, "..")) {
+        const char *forbidden =
+            "HTTP/1.1 403 Forbidden\r\n"
+            "Content-Type: text/plain\r\n"
+            "Content-Length: 13\r\n"
+            "\r\n"
+            "403 Forbidden";
+        write(client_fd, forbidden, strlen(forbidden));
+        return;
+    }
+
     // Construct the full file path
     char file_path[512];
     snprintf(file_path, sizeof(file_path), "%s%s", ROOT_DIR, path);
@@ -148,7 +233,7 @@ void handle_client(int client_fd) {
     char header[512];
     snprintf(header, sizeof(header),
              "HTTP/1.1 200 OK\r\n"
-             "Content-Length: %lld\r\n"  // Changed %ld to %lld
+             "Content-Length: %lld\r\n"  // Changed from %ld to %lld
              "Content-Type: %s\r\n"
              "\r\n",
              (long long)st.st_size, get_mime_type(file_path));

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude
+CFLAGS = -Wall -Wextra -Iinclude -pthread
 
 SRC = src/main.c src/server.c
 OBJ = $(SRC:.c=.o)

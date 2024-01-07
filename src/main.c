@@ -1,9 +1,11 @@
 #include "server.h"
 
+// Define the global request queue
+RequestQueue request_queue;
+
 int main(int argc, char *argv[]) {
-    // Suppress unused parameter warning
-    (void)argc;
-    (void)argv;
+    (void)argc; // Suppress unused parameter warning
+    (void)argv; // Suppress unused parameter warning
 
     // Start the server
     int server_fd = start_server();
@@ -14,6 +16,20 @@ int main(int argc, char *argv[]) {
 
     printf("SimpliC server is running on port %d...\n", PORT);
 
+    // Initialize the request queue
+    init_queue(&request_queue);
+
+    // Create a pool of worker threads
+    pthread_t threads[THREAD_POOL_SIZE];
+    for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+        if (pthread_create(&threads[i], NULL, worker_thread, NULL) != 0) {
+            perror("pthread_create failed");
+            close(server_fd);
+            return EXIT_FAILURE;
+        }
+    }
+
+    // Accept loop: continuously accept new client connections
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
@@ -28,16 +44,11 @@ int main(int argc, char *argv[]) {
         printf("Accepted connection from %s:%d\n",
                inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-        // Handle the client request
-        handle_client(client_fd);
-
-        // Close the client socket
-        close(client_fd);
-        printf("Closed connection from %s:%d\n",
-               inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        // Enqueue the new client connection for processing by worker threads
+        enqueue(&request_queue, client_fd);
     }
 
-    // Close the server socket (unreachable code in this simple server)
+    // Cleanup (unreachable in this simple server)
     close(server_fd);
     return EXIT_SUCCESS;
 }
