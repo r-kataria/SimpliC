@@ -1,0 +1,13 @@
+# Ignore build directory
+/build/
+
+# Ignore object files
+*.o
+
+# Ignore executable
+simpliC
+
+# Editor specific
+.vscode/
+.idea/
+*.swp
