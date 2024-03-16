@@ -53,4 +53,3 @@ A thread-safe queue implemented using a linked list to manage incoming client co
 A fixed-size pool of worker threads that continuously listen for and process client requests from the request queue.
 
 - **`THREAD_POOL_SIZE`:** Defines the number of worker threads in the pool.
-

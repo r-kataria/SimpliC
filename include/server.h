@@ -14,6 +14,7 @@
 #define BUFFER_SIZE 1024
 #define ROOT_DIR "./www"
 #define THREAD_POOL_SIZE 4  // Number of worker threads in the pool
+#define REWRITE_CONFIG "./config/rewrites.conf" // Path to rewrite rules
 
 // Function declarations
 int start_server();
@@ -45,6 +46,13 @@ int dequeue(RequestQueue *queue);
 // Worker thread function
 void* worker_thread(void *arg);
 
+// Global request queue
 extern RequestQueue request_queue;
+
+// Forward declaration of rewrite rules
+typedef struct RewriteRule RewriteRule;
+
+// Declare the global rewrite_rules variable
+extern RewriteRule *rewrite_rules;
 
 #endif // SERVER_H

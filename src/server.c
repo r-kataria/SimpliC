@@ -1,7 +1,11 @@
 #include "server.h"
+#include "file_loader.h"
 
 // Define the global request queue
 RequestQueue request_queue;
+
+// Define the global rewrite rules
+RewriteRule *rewrite_rules = NULL;
 
 // Initialize the request queue
 void init_queue(RequestQueue *queue) {
@@ -86,7 +90,6 @@ const char* get_mime_type(const char *path) {
     if (strcmp(ext, "jpg") == 0 || strcmp(ext, "jpeg") == 0) return "image/jpeg";
     if (strcmp(ext, "gif") == 0) return "image/gif";
     if (strcmp(ext, "txt") == 0) return "text/plain";
-    // Add more MIME types as needed
 
     return "application/octet-stream";
 }
@@ -133,7 +136,7 @@ int start_server() {
     return server_fd;
 }
 
-// Function to handle client requests
+// Function to handle client requests with URL rewriting
 void handle_client(int client_fd) {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
@@ -180,9 +183,17 @@ void handle_client(int client_fd) {
         return;
     }
 
+    // Apply rewrite rules
+    const char *rewritten_path = apply_rewrite(rewrite_rules, path);
+    if (rewritten_path != NULL) {
+        printf("Rewriting path: %s -> %s\n", path, rewritten_path);
+    } else {
+        rewritten_path = path; // No rewrite rule matched
+    }
+
     // Construct the full file path
     char file_path[512];
-    snprintf(file_path, sizeof(file_path), "%s%s", ROOT_DIR, path);
+    snprintf(file_path, sizeof(file_path), "%s%s", ROOT_DIR, rewritten_path);
 
     // Open the file
     int file_fd = open(file_path, O_RDONLY);

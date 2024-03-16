@@ -6,6 +6,7 @@ CFLAGS = -Wall -Wextra -Iinclude -pthread -g
 SRC_DIR = src
 OBJ_DIR = build
 INCLUDE_DIR = include
+CONFIG_DIR = config
 
 # Source Files
 SRC = $(wildcard $(SRC_DIR)/*.c)
@@ -24,7 +25,7 @@ $(EXEC): $(OBJ) | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Compile source files to object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Build directory

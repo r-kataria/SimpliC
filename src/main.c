@@ -1,7 +1,5 @@
 #include "server.h"
-
-// Define the global request queue
-RequestQueue request_queue;
+#include "file_loader.h"
 
 int main(int argc, char *argv[]) {
     (void)argc; // Suppress unused parameter warning
@@ -18,6 +16,12 @@ int main(int argc, char *argv[]) {
 
     // Initialize the request queue
     init_queue(&request_queue);
+
+    // Load rewrite rules
+    rewrite_rules = load_rewrite_rules(REWRITE_CONFIG);
+    if (!rewrite_rules) {
+        fprintf(stderr, "Failed to load rewrite rules. Proceeding without rewrites.\n");
+    }
 
     // Create a pool of worker threads
     pthread_t threads[THREAD_POOL_SIZE];
